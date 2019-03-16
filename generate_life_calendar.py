@@ -32,7 +32,8 @@ BOX_LINE_WIDTH = 3
 BOX_SIZE = ((DOC_HEIGHT - (Y_MARGIN + 36)) / NUM_ROWS) - BOX_MARGIN
 X_MARGIN = (DOC_WIDTH - ((BOX_SIZE + BOX_MARGIN) * NUM_COLUMNS)) / 2
 
-BIRTHDAY_COLOUR = (0.5, 0.5, 0.5)
+LIVED_COLOUR = (0, 0, 0)
+BIRTHDAY_COLOUR = (0.55, 0.55, 0.55)
 NEWYEAR_COLOUR = (0.8, 0.8, 0.8)
 
 ARROW_HEAD_LENGTH = 36
@@ -78,7 +79,12 @@ def is_current_week(now, month, day):
 
     return (now <= date1 < end) or (now <= date2 < end)
 
-def draw_row(ctx, pos_y, start_date, date):
+def is_week_in_past(date):
+    today = datetime.date.today()
+    last_monday = today - datetime.timedelta(days=today.weekday())
+    return date.date() < last_monday
+
+def draw_row(ctx, pos_y, start_date, date, fill_lived):
     """
     Draws a row of 52 squares, starting at pos_y
     """
@@ -88,7 +94,9 @@ def draw_row(ctx, pos_y, start_date, date):
     for i in range(NUM_COLUMNS):
         fill=(1, 1, 1)
 
-        if is_current_week(date, start_date.month, start_date.day):
+        if fill_lived and is_week_in_past(date):
+            fill = LIVED_COLOUR
+        elif is_current_week(date, start_date.month, start_date.day):
             fill = BIRTHDAY_COLOUR
         elif is_current_week(date, 1, 1):
             fill = NEWYEAR_COLOUR
@@ -108,7 +116,7 @@ def draw_key_item(ctx, pos_x, pos_y, desc, colour):
 
     return pos_x + w + (BOX_SIZE * 2)
 
-def draw_grid(ctx, date):
+def draw_grid(ctx, date, years, fill_lived):
     """
     Draws the whole grid of 52x90 squares
     """
@@ -142,7 +150,7 @@ def draw_grid(ctx, date):
     ctx.select_font_face(FONT, cairo.FONT_SLANT_ITALIC,
         cairo.FONT_WEIGHT_NORMAL)
 
-    for i in range(NUM_ROWS):
+    for i in range(years):
         # Generate string for current date
         ctx.set_source_rgb(0, 0, 0)
         date_str = date.strftime('%d %b, %Y')
@@ -154,13 +162,13 @@ def draw_grid(ctx, date):
         ctx.show_text(date_str)
 
         # Draw the current row
-        draw_row(ctx, pos_y, start_date, date)
+        draw_row(ctx, pos_y, start_date, date, fill_lived)
 
         # Increment y position and current date by 1 row/year
         pos_y += BOX_SIZE + BOX_MARGIN
         date += datetime.timedelta(weeks=52)
 
-def gen_calendar(start_date, title, filename):
+def gen_calendar(start_date, title, filename, years, fill_lived):
     if len(title) > MAX_TITLE_SIZE:
         raise ValueError("Title can't be longer than %d characters"
             % MAX_TITLE_SIZE)
@@ -187,7 +195,7 @@ def gen_calendar(start_date, title, filename):
         date -= datetime.timedelta(days=1)
 
     # Draw 52x90 grid of squares
-    draw_grid(ctx, date)
+    draw_grid(ctx, date, years, fill_lived)
     ctx.show_page()
 
 def main():
@@ -209,6 +217,12 @@ def main():
         help='end date; If this is set, then a calendar with a different start date'
         ' will be generated for each day between the starting date and this date')
 
+    parser.add_argument('-l', '--life-expectancy', type=int, dest='years',
+        help='life expectancy in years, max 90, default 80', default=80)
+
+    parser.add_argument('-i', '--fill-lived', action="store_true", dest='fill_lived',
+        help='fill lived weeks')
+
     args = parser.parse_args()
 
     try:
@@ -218,6 +232,7 @@ def main():
         return
 
     doc_name = '%s.pdf' % (os.path.splitext(args.filename)[0])
+    years = max(1, min(90, args.years))
 
     if args.enddate:
         start = start_date
@@ -233,7 +248,7 @@ def main():
             name = "life_calendar_%s.pdf" % date_str
 
             try:
-                gen_calendar(start, args.title, name)
+                gen_calendar(start, args.title, name, years, args.fill_lived)
             except Exception as e:
                 print("Error: %s" % e)
                 return
@@ -242,7 +257,7 @@ def main():
 
     else:
         try:
-            gen_calendar(start_date, args.title, doc_name)
+            gen_calendar(start_date, args.title, doc_name, years, args.fill_lived)
         except Exception as e:
             print("Error: %s" % e)
             return

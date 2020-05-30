@@ -5,6 +5,7 @@ import os
 import cairo
 import locale
 import i18n
+import io
 
 DOC_WIDTH = 1872   # 26 inches
 DOC_HEIGHT = 2880  # 40 inches
@@ -180,7 +181,8 @@ def gen_calendar(start_date, title, filename, years, fill_lived):
             % MAX_TITLE_SIZE)
 
     # Fill background with white
-    surface = cairo.PDFSurface (filename, DOC_WIDTH, DOC_HEIGHT)
+    out = io.BytesIO()
+    surface = cairo.PDFSurface (out, DOC_WIDTH, DOC_HEIGHT)
     ctx = cairo.Context(surface)
 
     ctx.set_source_rgb(1, 1, 1)
@@ -203,6 +205,8 @@ def gen_calendar(start_date, title, filename, years, fill_lived):
     # Draw 52x90 grid of squares
     draw_grid(ctx, date, years, fill_lived)
     ctx.show_page()
+    surface.finish()
+    sys.stdout.buffer.write(out.getvalue())
 
 def main():
     parser = argparse.ArgumentParser(description='\nGenerate a personalized "Life '
@@ -215,13 +219,13 @@ def main():
     parser.add_argument('-f', '--filename', type=str, dest='filename',
         help='output filename', default=DOC_NAME)
 
+    parser.add_argument('-s', '--stdout', action='store_true',
+        help='dump PDF to standard output (for piping)')
+
     parser.add_argument('-t', '--title', type=str, dest='title',
         help='Calendar title text (default is "%s")' % DEFAULT_TITLE,
         default=DEFAULT_TITLE)
 
-    parser.add_argument('-e', '--end', type=str, dest='enddate',
-        help='end date; If this is set, then a calendar with a different start date'
-        ' will be generated for each day between the starting date and this date')
 
     parser.add_argument('-l', '--life-expectancy', type=int, dest='years',
         help='life expectancy in years, max 90, default 80', default=80)
@@ -243,38 +247,20 @@ def main():
         print("Error: %s" % e)
         return
 
-    doc_name = '%s.pdf' % (os.path.splitext(args.filename)[0])
+    if (args.stdout):
+        doc_name = None
+    else:
+        doc_name = '%s.pdf' % (os.path.splitext(args.filename)[0])
+
     years = max(1, min(88, args.years))
 
-    if args.enddate:
-        start = start_date
+    try:
+        gen_calendar(start_date, args.title, doc_name, years, args.fill_lived)
+    except Exception as e:
+        print("Error: %s" % e)
+        return
 
-        try:
-            end = parse_date(args.enddate)
-        except Exception as e:
-            print("Error: %s" % e)
-            return
-
-        while start <= end:
-            date_str = start.strftime('%d-%m-%Y')
-            name = "life_calendar_%s.pdf" % date_str
-
-            try:
-                gen_calendar(start, args.title, name, years, args.fill_lived)
-            except Exception as e:
-                print("Error: %s" % e)
-                return
-
-            start += datetime.timedelta(days=1)
-
-    else:
-        try:
-            gen_calendar(start_date, args.title, doc_name, years, args.fill_lived)
-        except Exception as e:
-            print("Error: %s" % e)
-            return
-
-        print('Created %s' % doc_name)
+#    print('Created %s' % doc_name)
 
 if __name__ == "__main__":
     main()

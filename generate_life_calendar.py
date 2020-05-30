@@ -3,16 +3,21 @@ import argparse
 import sys
 import os
 import cairo
+import locale
+import i18n
 
 DOC_WIDTH = 1872   # 26 inches
 DOC_HEIGHT = 2880  # 40 inches
 DOC_NAME = "life_calendar.pdf"
 
-KEY_NEWYEAR_DESC = "First week of the new year"
-KEY_BIRTHDAY_DESC = "Week of your birthday"
+i18n.set('locale', 'it_IT')
 
-XAXIS_DESC = "Weeks of the year"
-YAXIS_DESC = "Years of your life"
+i18n.add_translation('First week of the new year', 'Inizio anno', locale='it_IT')
+i18n.add_translation('Week of your birthday', 'Compleanno', locale='it_IT')
+i18n.add_translation('Weeks lived', 'Vissute', locale='it_IT')
+
+XAXIS_DESC = "Settimane dell'anno"
+YAXIS_DESC = "Anni di vita"
 
 FONT = "Brocha"
 BIGFONT_SIZE = 40
@@ -20,9 +25,9 @@ SMALLFONT_SIZE = 16
 TINYFONT_SIZE = 14
 
 MAX_TITLE_SIZE = 30
-DEFAULT_TITLE = "LIFE CALENDAR"
+DEFAULT_TITLE = "CALENDARIO DELLA VITA"
 
-NUM_ROWS = 90
+NUM_ROWS = 88
 NUM_COLUMNS = 52
 
 Y_MARGIN = 144
@@ -32,7 +37,7 @@ BOX_LINE_WIDTH = 3
 BOX_SIZE = ((DOC_HEIGHT - (Y_MARGIN + 36)) / NUM_ROWS) - BOX_MARGIN
 X_MARGIN = (DOC_WIDTH - ((BOX_SIZE + BOX_MARGIN) * NUM_COLUMNS)) / 2
 
-LIVED_COLOUR = (0, 0, 0)
+LIVED_COLOUR = (0.88, 0.88, 0.88)
 BIRTHDAY_COLOUR = (0.55, 0.55, 0.55)
 NEWYEAR_COLOUR = (0.8, 0.8, 0.8)
 
@@ -129,8 +134,9 @@ def draw_grid(ctx, date, years, fill_lived):
     ctx.select_font_face(FONT, cairo.FONT_SLANT_NORMAL,
         cairo.FONT_WEIGHT_NORMAL)
 
-    pos_x = draw_key_item(ctx, pos_x, pos_y, KEY_BIRTHDAY_DESC, BIRTHDAY_COLOUR)
-    draw_key_item(ctx, pos_x, pos_y, KEY_NEWYEAR_DESC, NEWYEAR_COLOUR)
+    pos_x = draw_key_item(ctx, pos_x, pos_y, i18n.t('Week of your birthday'), BIRTHDAY_COLOUR)
+    pos_x = draw_key_item(ctx, pos_x, pos_y, i18n.t('First week of the new year'), NEWYEAR_COLOUR)
+    draw_key_item(ctx, pos_x, pos_y, i18n.t('Weeks lived'), LIVED_COLOUR)
 
     # draw week numbers above top row
     ctx.set_font_size(TINYFONT_SIZE)
@@ -220,11 +226,17 @@ def main():
     parser.add_argument('-l', '--life-expectancy', type=int, dest='years',
         help='life expectancy in years, max 90, default 80', default=80)
 
+    parser.add_argument('--locale', type=str, dest='locale',
+        help='set locale for date and legenda generation', default='it_IT')
+
     parser.add_argument('-i', '--fill-lived', action="store_true", dest='fill_lived',
         help='fill lived weeks')
 
     args = parser.parse_args()
 
+    locale.setlocale(locale.LC_TIME, args.locale)
+    i18n.set('locale', args.locale)
+    
     try:
         start_date = parse_date(args.date)
     except Exception as e:
@@ -232,7 +244,7 @@ def main():
         return
 
     doc_name = '%s.pdf' % (os.path.splitext(args.filename)[0])
-    years = max(1, min(90, args.years))
+    years = max(1, min(88, args.years))
 
     if args.enddate:
         start = start_date

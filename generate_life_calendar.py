@@ -8,7 +8,7 @@ import i18n
 import io
 
 DOC_WIDTH = 1872   # 26 inches
-DOC_HEIGHT = 2880  # 40 inches
+DOC_HEIGHT = 2736  # 40 inches
 DOC_NAME = "life_calendar.pdf"
 
 i18n.set('locale', 'it_IT')
@@ -34,9 +34,9 @@ NUM_COLUMNS = 52
 Y_MARGIN = 144
 BOX_MARGIN = 6
 
-BOX_LINE_WIDTH = 3
+BOX_LINE_WIDTH = 2
 BOX_SIZE = ((DOC_HEIGHT - (Y_MARGIN + 36)) / NUM_ROWS) - BOX_MARGIN
-X_MARGIN = (DOC_WIDTH - ((BOX_SIZE + BOX_MARGIN) * NUM_COLUMNS)) / 2
+X_MARGIN = 12 + (DOC_WIDTH - ((BOX_SIZE + BOX_MARGIN) * NUM_COLUMNS)) / 2
 
 LIVED_COLOUR = (0.88, 0.88, 0.88)
 BIRTHDAY_COLOUR = (0.55, 0.55, 0.55)
@@ -180,8 +180,12 @@ def gen_calendar(start_date, title, filename, years, fill_lived):
         raise ValueError("Title can't be longer than %d characters"
             % MAX_TITLE_SIZE)
 
+    if (filename is None):
+        out = io.BytesIO()
+    else:
+        out = filename
+
     # Fill background with white
-    out = io.BytesIO()
     surface = cairo.PDFSurface (out, DOC_WIDTH, DOC_HEIGHT)
     ctx = cairo.Context(surface)
 
@@ -206,7 +210,9 @@ def gen_calendar(start_date, title, filename, years, fill_lived):
     draw_grid(ctx, date, years, fill_lived)
     ctx.show_page()
     surface.finish()
-    sys.stdout.buffer.write(out.getvalue())
+
+    if(filename is None):
+        sys.stdout.buffer.write(out.getvalue())
 
 def main():
     parser = argparse.ArgumentParser(description='\nGenerate a personalized "Life '
